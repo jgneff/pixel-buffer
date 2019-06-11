@@ -122,6 +122,7 @@ public class Viewer extends Application {
         var copy = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         var graphics = copy.createGraphics();
         graphics.drawImage(awtImage, 0, 0, null);
+        graphics.dispose();
         int[] data = ((DataBufferInt) copy.getRaster().getDataBuffer()).getData();
         jfxImage.getPixelWriter().setPixels(0, 0, width, height,
                 PixelFormat.getIntArgbInstance(), data, 0, width);
@@ -144,6 +145,7 @@ public class Viewer extends Application {
         var copy = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         var graphics = copy.createGraphics();
         graphics.drawImage(awtImage, 0, 0, null);
+        graphics.dispose();
         int[] data = ((DataBufferInt) copy.getRaster().getDataBuffer()).getData();
         byteBuffer.order(ByteOrder.nativeOrder()).asIntBuffer().put(data);
         pixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
@@ -177,14 +179,20 @@ public class Viewer extends Application {
         scene.addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
         stage.setTitle("Viewer");
         stage.setScene(scene);
-        view.setImage(jfxImage);
         stage.show();
 
+        /*
+         * These methods modify the pixels in the "jfxImage" WritableImage.
+         */
 //        oldDraw();
 //        oldCopy();
 //        newDraw();
         newCopy();
+        view.setImage(jfxImage);
 
+        /*
+         * This method modifies the pixels in the "intPixelBuffer" PixelBuffer.
+         */
 //        oneCopy();
 //        view.setImage(new WritableImage(intPixelBuffer));
     }
