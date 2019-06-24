@@ -42,11 +42,9 @@ import javax.imageio.ImageReader;
  * A JavaFX animation to test the support for a WritableImage backed by a
  * ByteBuffer. Run with a command like the following:
  * <pre>{@code
- * $HOME/opt/jdk-12.0.1+12/bin/java \
- *     --add-modules=javafx.graphics \
+ * $HOME/opt/jdk-12.0.1+12/bin/java --add-modules=javafx.graphics \
  *     --module-path=$HOME/lib/javafx-sdk-13-dev/lib \
- *     -Dprism.order=sw -Djavafx.animation.pulse=2 \
- *     Animator
+ *     -Dprism.order=sw -Djavafx.animation.pulse=2 Animator
  * }</pre>
  *
  * @see
@@ -144,7 +142,7 @@ public class Animator extends Application {
         };
 
         /*
-         * Tests the new converstion method using the PixelBuffer class. Note
+         * Tests the new conversion method using the PixelBuffer class. Note
          * that this method should use two buffers to avoid writing to an image
          * in use by the QuantumRenderer thread.
          */

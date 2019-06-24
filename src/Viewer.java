@@ -41,10 +41,8 @@ import javax.imageio.ImageIO;
  * A JavaFX application to test the new {@link PixelBuffer} class. Run with a
  * command like the following:
  * <pre>{@code
- * $HOME/opt/jdk-12.0.1+12/bin/java \
- *     --add-modules=javafx.graphics \
- *     --module-path=$HOME/lib/javafx-sdk-13-dev/lib \
- *     Viewer
+ * $HOME/opt/jdk-12.0.1+12/bin/java --add-modules=javafx.graphics \
+ *     --module-path=$HOME/lib/javafx-sdk-13-dev/lib Viewer
  * }</pre>
  *
  * @see
