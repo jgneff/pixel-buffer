@@ -17,6 +17,7 @@
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
 import java.awt.image.DataBufferInt;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -68,10 +69,18 @@ public class Tester extends Application {
     private final ImageView view;
     private final Pane root;
 
+    private final BufferedImage awtImageRgb;
+    private final BufferedImage awtImageBgr;
     private final BufferedImage awtImageArgb;
     private final BufferedImage awtImageArgbPre;
+    private final BufferedImage awtImageAbgr;
+    private final BufferedImage awtImageAbgrPre;
+    private final Graphics2D graphicsRgb;
+    private final Graphics2D graphicsBgr;
     private final Graphics2D graphicsArgb;
     private final Graphics2D graphicsArgbPre;
+    private final Graphics2D graphicsAbgr;
+    private final Graphics2D graphicsAbgrPre;
     private final WritableImage jfxImage;
 
     private final int[] rgbArray;
@@ -97,12 +106,26 @@ public class Tester extends Application {
         view = new ImageView();
         root = new StackPane(view);
 
+        awtImageRgb = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        awtImageBgr = new BufferedImage(width, height, BufferedImage.TYPE_INT_BGR);
         awtImageArgb = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         awtImageArgbPre = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
+        awtImageAbgr = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR);
+        awtImageAbgrPre = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR_PRE);
+
+        graphicsRgb = awtImageRgb.createGraphics();
+        graphicsBgr = awtImageBgr.createGraphics();
         graphicsArgb = awtImageArgb.createGraphics();
         graphicsArgbPre = awtImageArgbPre.createGraphics();
+        graphicsAbgr = awtImageAbgr.createGraphics();
+        graphicsAbgrPre = awtImageAbgrPre.createGraphics();
+
+        graphicsRgb.setBackground(AWT_BACKGROUND);
+        graphicsBgr.setBackground(AWT_BACKGROUND);
         graphicsArgb.setBackground(AWT_BACKGROUND);
         graphicsArgbPre.setBackground(AWT_BACKGROUND);
+        graphicsAbgr.setBackground(AWT_BACKGROUND);
+        graphicsAbgrPre.setBackground(AWT_BACKGROUND);
         jfxImage = new WritableImage(width, height);
 
         rgbArray = new int[width * height];
@@ -115,6 +138,10 @@ public class Tester extends Application {
                 this::drawWritePre,
                 this::drawPreWritePre,
                 this::drawPreWrite,
+                this::drawRgbWrite,
+                this::drawBgrWrite,
+                this::drawAbgrWrite,
+                this::drawAbgrPreWrite,
                 this::copyWrite,
                 this::copyWritePre,
                 this::nioDrawPrePut,
@@ -127,6 +154,14 @@ public class Tester extends Application {
         graphics.drawImage(awtImage, 0, 0, null);
         int[] data = ((DataBufferInt) tmpImage.getRaster().getDataBuffer()).getData();
         jfxImage.getPixelWriter().setPixels(0, 0, width, height, format, data, 0, width);
+        return jfxImage;
+    }
+
+    private Image oldDraw4Byte(BufferedImage tmpImage, Graphics2D graphics, PixelFormat<ByteBuffer> format) {
+        graphics.clearRect(0, 0, width, height);
+        graphics.drawImage(awtImage, 0, 0, null);
+        byte[] data = ((DataBufferByte) tmpImage.getRaster().getDataBuffer()).getData();
+        jfxImage.getPixelWriter().setPixels(0, 0, width, height, format, data, 0, width * Integer.BYTES);
         return jfxImage;
     }
 
@@ -153,49 +188,73 @@ public class Tester extends Application {
     }
 
     private Image drawWrite() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB.\tWriting IntArgbInstance.", index + 1);
+        message = String.format("%d - Drawing TYPE_INT_ARGB\tWriting IntArgbInstance", index + 1);
         System.out.println(message);
         return oldDraw(awtImageArgb, graphicsArgb, PixelFormat.getIntArgbInstance());
     }
 
     private Image drawWritePre() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB.\tWriting IntArgbPreInstance (WRONG).", index + 1);
+        message = String.format("%d - Drawing TYPE_INT_ARGB\tWriting IntArgbPreInstance (working?)", index + 1);
         System.out.println(message);
         return oldDraw(awtImageArgb, graphicsArgb, PixelFormat.getIntArgbPreInstance());
     }
 
     private Image drawPreWritePre() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE.\tWriting IntArgbPreInstance.", index + 1);
+        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE\tWriting IntArgbPreInstance", index + 1);
         System.out.println(message);
         return oldDraw(awtImageArgbPre, graphicsArgbPre, PixelFormat.getIntArgbPreInstance());
     }
 
     private Image drawPreWrite() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE.\tWriting IntArgbInstance (WRONG).", index + 1);
+        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE\tWriting IntArgbInstance (working?)", index + 1);
         System.out.println(message);
         return oldDraw(awtImageArgbPre, graphicsArgbPre, PixelFormat.getIntArgbInstance());
     }
 
+    private Image drawRgbWrite() {
+        message = String.format("%d - Drawing TYPE_INT_RGB\tWriting IntArgbInstance (blank)", index + 1);
+        System.out.println(message);
+        return oldDraw(awtImageRgb, graphicsRgb, PixelFormat.getIntArgbInstance());
+    }
+
+    private Image drawBgrWrite() {
+        message = String.format("%d - Drawing TYPE_INT_BGR\tWriting IntArgbInstance (blank)", index + 1);
+        System.out.println(message);
+        return oldDraw(awtImageBgr, graphicsBgr, PixelFormat.getIntArgbInstance());
+    }
+
+    private Image drawAbgrWrite() {
+        message = String.format("%d - Drawing TYPE_4BYTE_ABGR\tWriting ByteBgraInstance (wrong colors)", index + 1);
+        System.out.println(message);
+        return oldDraw4Byte(awtImageAbgr, graphicsAbgr, PixelFormat.getByteBgraInstance());
+    }
+
+    private Image drawAbgrPreWrite() {
+        message = String.format("%d - Drawing TYPE_4BYTE_ABGR_PRE\tWriting ByteBgraPreInstance (wrong colors)", index + 1);
+        System.out.println(message);
+        return oldDraw4Byte(awtImageAbgrPre, graphicsAbgrPre, PixelFormat.getByteBgraPreInstance());
+    }
+
     private Image copyWrite() {
-        message = String.format("%d - Copying TYPE_INT_ARGB.\tWriting IntArgbInstance.", index + 1);
+        message = String.format("%d - Copying TYPE_INT_ARGB\tWriting IntArgbInstance", index + 1);
         System.out.println(message);
         return oldCopy(PixelFormat.getIntArgbInstance());
     }
 
     private Image copyWritePre() {
-        message = String.format("%d - Copying TYPE_INT_ARGB.\tWriting IntArgbPreInstance (WRONG).", index + 1);
+        message = String.format("%d - Copying TYPE_INT_ARGB\tWriting IntArgbPreInstance (wrong alpha blending)", index + 1);
         System.out.println(message);
         return oldCopy(PixelFormat.getIntArgbPreInstance());
     }
 
     private Image nioDrawPrePut() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE.\tPutting ByteBgraPreInstance.", index + 1);
+        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE\tPutting ByteBgraPreInstance", index + 1);
         System.out.println(message);
         return nioDraw(awtImageArgbPre, graphicsArgbPre);
     }
 
     private Image nioCopyPut() {
-        message = String.format("%d - Copying TYPE_INT_ARGB.\tPutting ByteBgraPreInstance (WRONG).", index + 1);
+        message = String.format("%d - Copying TYPE_INT_ARGB\tPutting ByteBgraPreInstance (wrong alpha blending)", index + 1);
         System.out.println(message);
         return nioCopy();
     }
