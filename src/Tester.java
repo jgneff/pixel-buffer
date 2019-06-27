@@ -81,8 +81,6 @@ public class Tester extends Application {
 
     private final List<Callable<Image>> methods;
 
-    private BufferedImage tmpImage;
-    private Graphics2D graphics;
     private String message;
     private int index;
 
@@ -113,16 +111,18 @@ public class Tester extends Application {
         nioImage = new WritableImage(pixelBuffer);
 
         methods = Arrays.asList(
-                this::oldDrawArgb,
-                this::oldDrawArgbPre,
-                this::oldCopyArgb,
-                this::oldCopyArgbPre,
-                this::newDrawBgraPre,
-                this::newCopyBgraPre
+                this::drawWrite,
+                this::drawWritePre,
+                this::drawPreWritePre,
+                this::drawPreWrite,
+                this::copyWrite,
+                this::copyWritePre,
+                this::nioDrawPrePut,
+                this::nioCopyPut
         );
     }
 
-    private Image oldDraw(PixelFormat<IntBuffer> format) {
+    private Image oldDraw(BufferedImage tmpImage, Graphics2D graphics, PixelFormat<IntBuffer> format) {
         graphics.clearRect(0, 0, width, height);
         graphics.drawImage(awtImage, 0, 0, null);
         int[] data = ((DataBufferInt) tmpImage.getRaster().getDataBuffer()).getData();
@@ -130,7 +130,7 @@ public class Tester extends Application {
         return jfxImage;
     }
 
-    private Image newDraw() {
+    private Image nioDraw(BufferedImage tmpImage, Graphics2D graphics) {
         graphics.clearRect(0, 0, width, height);
         graphics.drawImage(awtImage, 0, 0, null);
         int[] data = ((DataBufferInt) tmpImage.getRaster().getDataBuffer()).getData();
@@ -145,53 +145,59 @@ public class Tester extends Application {
         return jfxImage;
     }
 
-    private Image newCopy() {
+    private Image nioCopy() {
         awtImage.getRGB(0, 0, width, height, rgbArray, 0, width);
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().put(rgbArray);
         pixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
         return nioImage;
     }
 
-    private Image oldDrawArgb() {
+    private Image drawWrite() {
         message = String.format("%d - Drawing TYPE_INT_ARGB.\tWriting IntArgbInstance.", index + 1);
         System.out.println(message);
-        tmpImage = awtImageArgb;
-        graphics = graphicsArgb;
-        return oldDraw(PixelFormat.getIntArgbInstance());
+        return oldDraw(awtImageArgb, graphicsArgb, PixelFormat.getIntArgbInstance());
     }
 
-    private Image oldDrawArgbPre() {
+    private Image drawWritePre() {
+        message = String.format("%d - Drawing TYPE_INT_ARGB.\tWriting IntArgbPreInstance (WRONG).", index + 1);
+        System.out.println(message);
+        return oldDraw(awtImageArgb, graphicsArgb, PixelFormat.getIntArgbPreInstance());
+    }
+
+    private Image drawPreWritePre() {
         message = String.format("%d - Drawing TYPE_INT_ARGB_PRE.\tWriting IntArgbPreInstance.", index + 1);
         System.out.println(message);
-        tmpImage = awtImageArgbPre;
-        graphics = graphicsArgbPre;
-        return oldDraw(PixelFormat.getIntArgbPreInstance());
+        return oldDraw(awtImageArgbPre, graphicsArgbPre, PixelFormat.getIntArgbPreInstance());
     }
 
-    private Image oldCopyArgb() {
+    private Image drawPreWrite() {
+        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE.\tWriting IntArgbInstance (WRONG).", index + 1);
+        System.out.println(message);
+        return oldDraw(awtImageArgbPre, graphicsArgbPre, PixelFormat.getIntArgbInstance());
+    }
+
+    private Image copyWrite() {
         message = String.format("%d - Copying TYPE_INT_ARGB.\tWriting IntArgbInstance.", index + 1);
         System.out.println(message);
         return oldCopy(PixelFormat.getIntArgbInstance());
     }
 
-    private Image oldCopyArgbPre() {
+    private Image copyWritePre() {
         message = String.format("%d - Copying TYPE_INT_ARGB.\tWriting IntArgbPreInstance (WRONG).", index + 1);
         System.out.println(message);
         return oldCopy(PixelFormat.getIntArgbPreInstance());
     }
 
-    private Image newDrawBgraPre() {
+    private Image nioDrawPrePut() {
         message = String.format("%d - Drawing TYPE_INT_ARGB_PRE.\tPutting ByteBgraPreInstance.", index + 1);
         System.out.println(message);
-        tmpImage = awtImageArgbPre;
-        graphics = graphicsArgbPre;
-        return newDraw();
+        return nioDraw(awtImageArgbPre, graphicsArgbPre);
     }
 
-    private Image newCopyBgraPre() {
+    private Image nioCopyPut() {
         message = String.format("%d - Copying TYPE_INT_ARGB.\tPutting ByteBgraPreInstance (WRONG).", index + 1);
         System.out.println(message);
-        return newCopy();
+        return nioCopy();
     }
 
     private void onMousePressed(MouseEvent event) {
