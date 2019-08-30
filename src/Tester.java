@@ -37,7 +37,6 @@ import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -259,8 +258,9 @@ public class Tester extends Application {
         return nioCopy();
     }
 
-    private void onMousePressed(MouseEvent event) {
-        if (!event.isSynthesized()) {
+    private void onKeyPressed(KeyEvent event) {
+        KeyCode code = event.getCode();
+        if (code == KeyCode.SPACE) {
             event.consume();
             try {
                 view.setImage(methods.get(index).call());
@@ -272,12 +272,7 @@ public class Tester extends Application {
                     System.out.println();
                 }
             }
-        }
-    }
-
-    private void onKeyPressed(KeyEvent event) {
-        KeyCode code = event.getCode();
-        if (code == KeyCode.Q || code == KeyCode.ESCAPE) {
+        } else if (code == KeyCode.Q || code == KeyCode.ESCAPE) {
             event.consume();
             Platform.exit();
         }
@@ -286,7 +281,6 @@ public class Tester extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         Scene scene = new Scene(root, 800, 600, JFX_BACKGROUND);
-        scene.addEventHandler(MouseEvent.MOUSE_PRESSED, this::onMousePressed);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
         stage.setTitle("Viewer");
         stage.setScene(scene);
