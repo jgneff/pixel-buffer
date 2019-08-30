@@ -59,8 +59,7 @@ import javax.imageio.ImageIO;
  */
 public class Tester extends Application {
 
-    private static final Color JFX_BACKGROUND = Color.grayRgb(224);
-    private static final java.awt.Color AWT_BACKGROUND = new java.awt.Color(224, 224, 224);
+    private static final Color BACKGROUND = Color.grayRgb(224);
 
     private final BufferedImage pngImage;
     private final int width;
@@ -118,8 +117,6 @@ public class Tester extends Application {
 
     private Image oldDraw(BufferedImage awtImage, PixelFormat<IntBuffer> format) {
         Graphics2D graphics = awtImage.createGraphics();
-        graphics.setBackground(AWT_BACKGROUND);
-        graphics.clearRect(0, 0, width, height);
         graphics.drawImage(pngImage, 0, 0, null);
         graphics.dispose();
         int[] data = ((DataBufferInt) awtImage.getRaster().getDataBuffer()).getData();
@@ -129,8 +126,6 @@ public class Tester extends Application {
 
     private Image oldDraw4Byte(BufferedImage awtImage, PixelFormat<ByteBuffer> format) {
         Graphics2D graphics = awtImage.createGraphics();
-        graphics.setBackground(AWT_BACKGROUND);
-        graphics.clearRect(0, 0, width, height);
         graphics.drawImage(pngImage, 0, 0, null);
         graphics.dispose();
         byte[] data = ((DataBufferByte) awtImage.getRaster().getDataBuffer()).getData();
@@ -140,8 +135,6 @@ public class Tester extends Application {
 
     private Image nioDraw(BufferedImage awtImage) {
         Graphics2D graphics = awtImage.createGraphics();
-        graphics.setBackground(AWT_BACKGROUND);
-        graphics.clearRect(0, 0, width, height);
         graphics.drawImage(pngImage, 0, 0, null);
         graphics.dispose();
         int[] data = ((DataBufferInt) awtImage.getRaster().getDataBuffer()).getData();
@@ -171,7 +164,7 @@ public class Tester extends Application {
     }
 
     private Image drawWritePre() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB\tWriting IntArgbPreInstance (working?)", index + 1);
+        message = String.format("%d - Drawing TYPE_INT_ARGB\tWriting IntArgbPreInstance (wrong alpha blending)", index + 1);
         System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         return oldDraw(awtImage, PixelFormat.getIntArgbPreInstance());
@@ -185,7 +178,7 @@ public class Tester extends Application {
     }
 
     private Image drawPreWrite() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE\tWriting IntArgbInstance (working?)", index + 1);
+        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE\tWriting IntArgbInstance (wrong alpha blending)", index + 1);
         System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
         return oldDraw(awtImage, PixelFormat.getIntArgbInstance());
@@ -266,7 +259,7 @@ public class Tester extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        Scene scene = new Scene(root, 800, 600, JFX_BACKGROUND);
+        Scene scene = new Scene(root, 800, 600, BACKGROUND);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
         stage.setTitle("Viewer");
         stage.setScene(scene);
