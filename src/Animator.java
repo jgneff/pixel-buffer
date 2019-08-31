@@ -55,6 +55,9 @@ import javax.imageio.ImageReader;
  */
 public class Animator extends Application {
 
+    private static final String TITLE = "Animator";
+    private static final String IMAGE = "duke-waving.gif";
+
     private final ArrayList<BufferedImage> frames;
     private final int width;
     private final int height;
@@ -87,7 +90,7 @@ public class Animator extends Application {
     }
 
     public Animator() throws IOException {
-        frames = loadFrames("duke-waving.gif");
+        frames = loadFrames(IMAGE);
         BufferedImage first = frames.get(0);
         width = first.getWidth();
         height = first.getHeight();
@@ -182,7 +185,7 @@ public class Animator extends Application {
         Scene scene = new Scene(root, 800, 600);
         scene.addEventHandler(MouseEvent.MOUSE_PRESSED, this::onMousePressed);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
-        stage.setTitle("Animator");
+        stage.setTitle(TITLE);
         stage.setScene(scene);
         stage.show();
         animation.start();

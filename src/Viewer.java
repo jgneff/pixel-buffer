@@ -53,6 +53,9 @@ import javax.imageio.ImageIO;
  */
 public class Viewer extends Application {
 
+    private static final String TITLE = "Viewer";
+    private static final String IMAGE = "Renoir_by_Bazille.jpg";
+
     private final BufferedImage awtImage;
     private final int width;
     private final int height;
@@ -87,7 +90,7 @@ public class Viewer extends Application {
     }
 
     public Viewer() throws IOException {
-        awtImage = loadImage("Renoir_by_Bazille.jpg");
+        awtImage = loadImage(IMAGE);
         width = awtImage.getWidth();
         height = awtImage.getHeight();
         view = new ImageView();
@@ -175,7 +178,7 @@ public class Viewer extends Application {
     public void start(Stage stage) throws IOException {
         Scene scene = new Scene(root, 501, 600);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
-        stage.setTitle("Viewer");
+        stage.setTitle(TITLE);
         stage.setScene(scene);
         stage.show();
 

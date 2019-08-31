@@ -59,6 +59,9 @@ import javax.imageio.ImageIO;
  */
 public class Tester extends Application {
 
+    private static final String TITLE = "Tester";
+    private static final String IMAGE = "PNG_transparency_demonstration_1.png";
+
     private static final Color BACKGROUND = Color.grayRgb(224);
     private static final int MAX_EXTRA_TAB = 24;
     private static final String MSG_OK = "OK";
@@ -124,7 +127,7 @@ public class Tester extends Application {
     }
 
     public Tester() throws IOException {
-        pngImage = loadImage("PNG_transparency_demonstration_1.png");
+        pngImage = loadImage(IMAGE);
         width = pngImage.getWidth();
         height = pngImage.getHeight();
         view = new ImageView();
@@ -316,7 +319,7 @@ public class Tester extends Application {
     public void start(Stage stage) throws IOException {
         Scene scene = new Scene(root, 800, 600, BACKGROUND);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
-        stage.setTitle("Viewer");
+        stage.setTitle(TITLE);
         stage.setScene(scene);
         stage.show();
     }
