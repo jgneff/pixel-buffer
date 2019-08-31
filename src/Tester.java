@@ -60,6 +60,11 @@ import javax.imageio.ImageIO;
 public class Tester extends Application {
 
     private static final Color BACKGROUND = Color.grayRgb(224);
+    private static final int MAX_EXTRA_TAB = 24;
+    private static final String MSG_OK = "OK";
+    private static final String MSG_ALPHA = "Wrong alpha";
+    private static final String MSG_BLANK = "Blank image";
+    private static final String MSG_COLORS = "Wrong colors";
 
     private final BufferedImage pngImage;
     private final int width;
@@ -76,13 +81,46 @@ public class Tester extends Application {
 
     private final List<Callable<Image>> methods;
 
-    private String message;
     private int index;
 
     private static BufferedImage loadImage(String filename) throws IOException {
         try (var input = Animator.class.getResourceAsStream(filename)) {
             return ImageIO.read(input);
         }
+    }
+
+    private static String getName(int type) {
+        String name = null;
+        switch (type) {
+            case BufferedImage.TYPE_CUSTOM:
+                name = "CUSTOM";
+                break;
+            case BufferedImage.TYPE_INT_RGB:
+                name = "INT_RGB";
+                break;
+            case BufferedImage.TYPE_INT_ARGB:
+                name = "INT_ARGB";
+                break;
+            case BufferedImage.TYPE_INT_ARGB_PRE:
+                name = "INT_ARGB_PRE";
+                break;
+            case BufferedImage.TYPE_INT_BGR:
+                name = "INT_BGR";
+                break;
+            case BufferedImage.TYPE_3BYTE_BGR:
+                name = "3BYTE_BGR";
+                break;
+            case BufferedImage.TYPE_4BYTE_ABGR:
+                name = "4BYTE_ABGR";
+                break;
+            case BufferedImage.TYPE_4BYTE_ABGR_PRE:
+                name = "4BYTE_ABGR_PRE";
+                break;
+            default:
+                name = "unknown";
+                break;
+        }
+        return name;
     }
 
     public Tester() throws IOException {
@@ -113,6 +151,20 @@ public class Tester extends Application {
                 this::nioDrawPrePut,
                 this::nioCopyPut
         );
+    }
+
+    private void log(int type, PixelFormat format, String comment) {
+        String awtType = getName(type);
+        String jfxType = format.getType().toString();
+        StringBuffer message = new StringBuffer();
+        message.append(String.format("%02d - Source: %s", index + 1, awtType));
+        message.append(message.length() < MAX_EXTRA_TAB ? "\t\t" : "\t");
+        message.append(String.format("Target: %s\t%s", jfxType, comment));
+        System.out.println(message);
+    }
+
+    private void log(BufferedImage image, PixelFormat format, String comment) {
+        log(image.getType(), format, comment);
     }
 
     private Image oldDraw(BufferedImage awtImage, PixelFormat<IntBuffer> format) {
@@ -157,83 +209,86 @@ public class Tester extends Application {
     }
 
     private Image drawWrite() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB\tWriting IntArgbInstance", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        return oldDraw(awtImage, PixelFormat.getIntArgbInstance());
+        var format = PixelFormat.getIntArgbInstance();
+        log(awtImage, format, MSG_OK);
+        return oldDraw(awtImage, format);
     }
 
     private Image drawWritePre() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB\tWriting IntArgbPreInstance (wrong alpha blending)", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        return oldDraw(awtImage, PixelFormat.getIntArgbPreInstance());
+        var format = PixelFormat.getIntArgbPreInstance();
+        log(awtImage, format, MSG_ALPHA);
+        return oldDraw(awtImage, format);
     }
 
     private Image drawPreWritePre() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE\tWriting IntArgbPreInstance", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
-        return oldDraw(awtImage, PixelFormat.getIntArgbPreInstance());
+        var format = PixelFormat.getIntArgbPreInstance();
+        log(awtImage, format, MSG_OK);
+        return oldDraw(awtImage, format);
     }
 
     private Image drawPreWrite() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE\tWriting IntArgbInstance (wrong alpha blending)", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
-        return oldDraw(awtImage, PixelFormat.getIntArgbInstance());
+        var format = PixelFormat.getIntArgbInstance();
+        log(awtImage, format, MSG_ALPHA);
+        return oldDraw(awtImage, format);
     }
 
     private Image drawRgbWrite() {
-        message = String.format("%d - Drawing TYPE_INT_RGB\tWriting IntArgbInstance (blank)", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        return oldDraw(awtImage, PixelFormat.getIntArgbInstance());
+        var format = PixelFormat.getIntArgbInstance();
+        log(awtImage, format, MSG_BLANK);
+        return oldDraw(awtImage, format);
     }
 
     private Image drawBgrWrite() {
-        message = String.format("%d - Drawing TYPE_INT_BGR\tWriting IntArgbInstance (blank)", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_BGR);
-        return oldDraw(awtImage, PixelFormat.getIntArgbInstance());
+        var format = PixelFormat.getIntArgbInstance();
+        log(awtImage, format, MSG_BLANK);
+        return oldDraw(awtImage, format);
     }
 
     private Image drawAbgrWrite() {
-        message = String.format("%d - Drawing TYPE_4BYTE_ABGR\tWriting ByteBgraInstance (wrong colors)", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR);
-        return oldDraw4Byte(awtImage, PixelFormat.getByteBgraInstance());
+        var format = PixelFormat.getByteBgraInstance();
+        log(awtImage, format, MSG_COLORS);
+        return oldDraw4Byte(awtImage, format);
     }
 
     private Image drawAbgrPreWrite() {
-        message = String.format("%d - Drawing TYPE_4BYTE_ABGR_PRE\tWriting ByteBgraPreInstance (wrong colors)", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR_PRE);
-        return oldDraw4Byte(awtImage, PixelFormat.getByteBgraPreInstance());
+        var format = PixelFormat.getByteBgraPreInstance();
+        log(awtImage, format, MSG_COLORS);
+        return oldDraw4Byte(awtImage, format);
     }
 
     private Image copyWrite() {
-        message = String.format("%d - Copying TYPE_INT_ARGB\tWriting IntArgbInstance", index + 1);
-        System.out.println(message);
-        return oldCopy(PixelFormat.getIntArgbInstance());
+        int type = BufferedImage.TYPE_INT_ARGB;
+        var format = PixelFormat.getIntArgbInstance();
+        log(type, format, MSG_OK);
+        return oldCopy(format);
     }
 
     private Image copyWritePre() {
-        message = String.format("%d - Copying TYPE_INT_ARGB\tWriting IntArgbPreInstance (wrong alpha blending)", index + 1);
-        System.out.println(message);
-        return oldCopy(PixelFormat.getIntArgbPreInstance());
+        int type = BufferedImage.TYPE_INT_ARGB;
+        var format = PixelFormat.getIntArgbPreInstance();
+        log(type, format, MSG_ALPHA);
+        return oldCopy(format);
     }
 
     private Image nioDrawPrePut() {
-        message = String.format("%d - Drawing TYPE_INT_ARGB_PRE\tPutting ByteBgraPreInstance", index + 1);
-        System.out.println(message);
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
+        var format = pixelBuffer.getPixelFormat();
+        log(awtImage, format, MSG_OK);
         return nioDraw(awtImage);
     }
 
     private Image nioCopyPut() {
-        message = String.format("%d - Copying TYPE_INT_ARGB\tPutting ByteBgraPreInstance (wrong alpha blending)", index + 1);
-        System.out.println(message);
+        int type = BufferedImage.TYPE_INT_ARGB;
+        var format = pixelBuffer.getPixelFormat();
+        log(type, format, MSG_ALPHA);
         return nioCopy();
     }
 
