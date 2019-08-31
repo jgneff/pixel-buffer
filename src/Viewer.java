@@ -103,7 +103,7 @@ public class Viewer extends Application {
         intArray = new int[width * height];
 
         intBuffer = IntBuffer.allocate(width * height);
-        intPixelFormat = PixelFormat.getIntArgbInstance();
+        intPixelFormat = PixelFormat.getIntArgbPreInstance();
         intPixelBuffer = new PixelBuffer<>(width, height, intBuffer, intPixelFormat);
     }
 
