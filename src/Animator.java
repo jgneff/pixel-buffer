@@ -24,7 +24,6 @@ import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelBuffer;
@@ -32,7 +31,6 @@ import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javax.imageio.ImageIO;
@@ -42,8 +40,8 @@ import javax.imageio.ImageReader;
  * A JavaFX animation to test the support for a WritableImage backed by a
  * ByteBuffer. Run with a command like the following:
  * <pre>{@code
- * $HOME/opt/jdk-12.0.1+12/bin/java --add-modules=javafx.graphics \
- *     --module-path=$HOME/lib/javafx-sdk-13-dev/lib \
+ * ~/opt/jdk-13.0.2/bin/java --add-modules=javafx.graphics \
+ *     --module-path=$HOME/lib/javafx-sdk-14/lib \
  *     -Dprism.order=sw -Djavafx.animation.pulse=2 Animator
  * }</pre>
  *
@@ -63,7 +61,7 @@ public class Animator extends Application {
     private final int height;
     private final int[] array;
     private final ImageView view;
-    private final Parent root;
+    private final StackPane root;
 
     private AnimationTimer animation;
     private boolean isRunning;
@@ -109,16 +107,12 @@ public class Animator extends Application {
         }
     }
 
-    private void onMousePressed(MouseEvent event) {
-        if (!event.isSynthesized()) {
-            event.consume();
-            toggleTimers();
-        }
-    }
-
     private void onKeyPressed(KeyEvent event) {
         KeyCode code = event.getCode();
-        if (code == KeyCode.Q || code == KeyCode.ESCAPE) {
+        if (code == KeyCode.SPACE) {
+            event.consume();
+            toggleTimers();
+        } else if (code == KeyCode.Q || code == KeyCode.ESCAPE) {
             event.consume();
             Platform.exit();
         }
@@ -183,7 +177,6 @@ public class Animator extends Application {
     @Override
     public void start(Stage stage) {
         Scene scene = new Scene(root, 800, 600);
-        scene.addEventHandler(MouseEvent.MOUSE_PRESSED, this::onMousePressed);
         scene.addEventHandler(KeyEvent.KEY_PRESSED, this::onKeyPressed);
         stage.setTitle(TITLE);
         stage.setScene(scene);

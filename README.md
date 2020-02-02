@@ -1,6 +1,7 @@
 # PixelBuffer Tests
 
 This project tests the new `PixelBuffer` class proposed by the pull request [javafxports/openjdk-jfx#472](https://github.com/javafxports/openjdk-jfx/pull/472), "JDK-8167148: Add native rendering support by supporting WritableImages backed by NIO ByteBuffers."
+This enhancement is available in JavaFX 13 or later.
 
 ## Licenses
 

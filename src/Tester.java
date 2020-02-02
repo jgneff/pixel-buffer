@@ -37,7 +37,6 @@ import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -47,8 +46,8 @@ import javax.imageio.ImageIO;
  * A JavaFX application to test the new {@link PixelBuffer} class on an image
  * with transparency. Run with a command like the following:
  * <pre>{@code
- * $HOME/opt/jdk-12.0.1+12/bin/java --add-modules=javafx.graphics \
- *     --module-path=$HOME/lib/javafx-sdk-13-dev/lib Tester
+ * $HOME/opt/jdk-13.0.2/bin/java --add-modules=javafx.graphics \
+ *     --module-path=$HOME/lib/javafx-sdk-14/lib Tester
  * }</pre>
  *
  * @see
@@ -73,7 +72,7 @@ public class Tester extends Application {
     private final int width;
     private final int height;
     private final ImageView view;
-    private final Pane root;
+    private final StackPane root;
 
     private final WritableImage jfxImage;
 
@@ -300,14 +299,14 @@ public class Tester extends Application {
         if (code == KeyCode.SPACE) {
             event.consume();
             try {
+                if (index == 0) {
+                    System.out.println();
+                }
                 view.setImage(methods.get(index).call());
             } catch (Exception ex) {
                 System.err.println(ex);
             } finally {
                 index = index == methods.size() - 1 ? 0 : index + 1;
-                if (index == 0) {
-                    System.out.println();
-                }
             }
         } else if (code == KeyCode.Q || code == KeyCode.ESCAPE) {
             event.consume();

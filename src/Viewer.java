@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.File;
@@ -22,10 +23,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.util.Arrays;
+import java.util.List;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelBuffer;
@@ -41,8 +43,8 @@ import javax.imageio.ImageIO;
  * A JavaFX application to test the new {@link PixelBuffer} class. Run with a
  * command like the following:
  * <pre>{@code
- * $HOME/opt/jdk-12.0.1+12/bin/java --add-modules=javafx.graphics \
- *     --module-path=$HOME/lib/javafx-sdk-13-dev/lib Viewer
+ * $HOME/opt/jdk-13.0.2/bin/java --add-modules=javafx.graphics \
+ *     --module-path=$HOME/lib/javafx-sdk-14/lib Viewer
  * }</pre>
  *
  * @see
@@ -56,21 +58,15 @@ public class Viewer extends Application {
     private static final String TITLE = "Viewer";
     private static final String IMAGE = "Renoir_by_Bazille.jpg";
 
+    private final BufferedImage awtSolid;
     private final BufferedImage awtImage;
     private final int width;
     private final int height;
     private final ImageView view;
-    private final Parent root;
+    private final StackPane root;
+    private final List<Runnable> methods;
 
-    private final ByteBuffer byteBuffer;
-    private final PixelFormat<ByteBuffer> pixelFormat;
-    private final PixelBuffer<ByteBuffer> pixelBuffer;
-    private final WritableImage jfxImage;
-    private final int[] intArray;
-
-    private final IntBuffer intBuffer;
-    private final PixelFormat<IntBuffer> intPixelFormat;
-    private final PixelBuffer<IntBuffer> intPixelBuffer;
+    private int index;
 
     private static void saveImage(String name, IntBuffer buffer, int width, int height) throws IOException {
         IntBuffer src = buffer.duplicate().clear();
@@ -83,6 +79,16 @@ public class Viewer extends Application {
         ImageIO.write(image, "png", new File(name));
     }
 
+    private static BufferedImage solidImage(int width, int height) {
+        var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                image.setRGB(x, y, Color.DARK_GRAY.getRGB());
+            }
+        }
+        return image;
+    }
+
     private static BufferedImage loadImage(String filename) throws IOException {
         try (var input = Animator.class.getResourceAsStream(filename)) {
             return ImageIO.read(input);
@@ -93,63 +99,89 @@ public class Viewer extends Application {
         awtImage = loadImage(IMAGE);
         width = awtImage.getWidth();
         height = awtImage.getHeight();
+        awtSolid = solidImage(width, height);
         view = new ImageView();
         root = new StackPane(view);
 
-        byteBuffer = ByteBuffer.allocateDirect(width * height * Integer.BYTES);
-        pixelFormat = PixelFormat.getByteBgraPreInstance();
-        pixelBuffer = new PixelBuffer<>(width, height, byteBuffer, pixelFormat);
-        jfxImage = new WritableImage(pixelBuffer);
-        intArray = new int[width * height];
-
-        intBuffer = IntBuffer.allocate(width * height);
-        intPixelFormat = PixelFormat.getIntArgbPreInstance();
-        intPixelBuffer = new PixelBuffer<>(width, height, intBuffer, intPixelFormat);
-    }
-
-    private void onKeyPressed(KeyEvent event) {
-        KeyCode code = event.getCode();
-        if (code == KeyCode.Q || code == KeyCode.ESCAPE) {
-            event.consume();
-            Platform.exit();
-        }
+        methods = Arrays.asList(
+                this::clear,
+                this::oldDraw,
+                this::clear,
+                this::oldCopy,
+                this::clear,
+                this::newDraw,
+                this::clear,
+                this::newCopy,
+                this::clear,
+                this::oneCopy
+        );
     }
 
     /**
-     * Converts the image like {@code javafx.embed.swing.SwingFXUtils} using an
-     * intermediate ARGB {@code BufferedImage}.
+     * Clears the view with a solid red image.
+     */
+    private void clear() {
+        // Returns the pixels in the default RGB color model (TYPE_INT_ARGB).
+        var intArray = new int[width * height];
+        awtSolid.getRGB(0, 0, width, height, intArray, 0, width);
+        var jfxImage = new WritableImage(width, height);
+        jfxImage.getPixelWriter().setPixels(0, 0, width, height,
+                PixelFormat.getIntArgbInstance(), intArray, 0, width);
+        view.setImage(jfxImage);
+    }
+
+    /**
+     * Converts the image as {@code javafx.embed.swing.SwingFXUtils} does by
+     * using an intermediate {@code BufferedImage} of type TYPE_INT_ARGB_PRE.
      */
     private void oldDraw() {
-        var copy = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        System.out.println("oldDraw: Drawing to intermediate AWT image; writing to JavaFX image.");
+        var copy = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
         var graphics = copy.createGraphics();
         graphics.drawImage(awtImage, 0, 0, null);
         graphics.dispose();
         int[] data = ((DataBufferInt) copy.getRaster().getDataBuffer()).getData();
+        var jfxImage = new WritableImage(width, height);
         jfxImage.getPixelWriter().setPixels(0, 0, width, height,
-                PixelFormat.getIntArgbInstance(), data, 0, width);
+                PixelFormat.getIntArgbPreInstance(), data, 0, width);
+        view.setImage(jfxImage);
     }
 
     /**
      * Converts the image using an intermediate integer array.
      */
     private void oldCopy() {
+        System.out.println("oldCopy: Copying to intermediate array; writing to JavaFX image.");
+        // Returns the pixels in the default RGB color model (TYPE_INT_ARGB).
+        var intArray = new int[width * height];
         awtImage.getRGB(0, 0, width, height, intArray, 0, width);
+        var jfxImage = new WritableImage(width, height);
         jfxImage.getPixelWriter().setPixels(0, 0, width, height,
                 PixelFormat.getIntArgbInstance(), intArray, 0, width);
+        view.setImage(jfxImage);
     }
 
     /**
      * Converts the image using the new {@link PixelBuffer} class and an
-     * intermediate ARGB {@code BufferedImage}.
+     * intermediate {@code BufferedImage} of type TYPE_INT_ARGB_PRE.
      */
     private void newDraw() {
-        var copy = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        System.out.println("newDraw: Drawing to intermediate AWT image; updating pixel buffer.");
+        var copy = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
         var graphics = copy.createGraphics();
         graphics.drawImage(awtImage, 0, 0, null);
         graphics.dispose();
         int[] data = ((DataBufferInt) copy.getRaster().getDataBuffer()).getData();
+
+        // Creating a PixelBuffer using BYTE_BGRA_PRE pixel format.
+        var byteBuffer = ByteBuffer.allocateDirect(width * height * Integer.BYTES);
+        var bytePixelBuffer = new PixelBuffer<>(width, height, byteBuffer,
+                PixelFormat.getByteBgraPreInstance());
+        var byteImage = new WritableImage(bytePixelBuffer);
+
         byteBuffer.order(ByteOrder.nativeOrder()).asIntBuffer().put(data);
-        pixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        bytePixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        view.setImage(byteImage);
     }
 
     /**
@@ -157,21 +189,54 @@ public class Viewer extends Application {
      * intermediate integer array.
      */
     private void newCopy() {
+        System.out.println("newCopy: Copying to intermediate array; updating pixel buffer.");
+        // Returns the pixels in the default RGB color model (TYPE_INT_ARGB).
+        var intArray = new int[width * height];
         awtImage.getRGB(0, 0, width, height, intArray, 0, width);
+
+        // Creating a PixelBuffer using BYTE_BGRA_PRE pixel format.
+        var byteBuffer = ByteBuffer.allocateDirect(width * height * Integer.BYTES);
+        var bytePixelBuffer = new PixelBuffer<>(width, height, byteBuffer,
+                PixelFormat.getByteBgraPreInstance());
+        var byteImage = new WritableImage(bytePixelBuffer);
+
         byteBuffer.order(ByteOrder.nativeOrder()).asIntBuffer().put(intArray);
-        pixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        bytePixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        view.setImage(byteImage);
     }
 
     /**
      * Converts the image by copying the pixels just once directly into the
-     * integer array that backs the {@link PixelBuffer<IntBuffer>}. Fails with:
-     * <pre>{@code
-     * java.lang.UnsupportedOperationException: Format Not yet supported
-     * }</pre>
+     * integer array that backs the {@link PixelBuffer<IntBuffer>}.
      */
     private void oneCopy() {
+        System.out.println("oneCopy: Copying directly to integer pixel buffer.");
+
+        // Creating a PixelBuffer using INT_ARGB_PRE pixel format.
+        var intBuffer = IntBuffer.allocate(width * height);
+        var intPixelBuffer = new PixelBuffer<>(width, height, intBuffer,
+                PixelFormat.getIntArgbPreInstance());
+        var intImage = new WritableImage(intPixelBuffer);
+
+        // Returns the pixels in the default RGB color model (TYPE_INT_ARGB).
         awtImage.getRGB(0, 0, width, height, intBuffer.array(), 0, width);
         intPixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        view.setImage(intImage);
+    }
+
+    private void onKeyPressed(KeyEvent event) {
+        KeyCode code = event.getCode();
+        if (code == KeyCode.SPACE) {
+            event.consume();
+            Platform.runLater(methods.get(index));
+            if (index == 0) {
+                System.out.println();
+            }
+            index = index == methods.size() - 1 ? 0 : index + 1;
+        } else if (code == KeyCode.Q || code == KeyCode.ESCAPE) {
+            event.consume();
+            Platform.exit();
+        }
     }
 
     @Override
@@ -181,21 +246,6 @@ public class Viewer extends Application {
         stage.setTitle(TITLE);
         stage.setScene(scene);
         stage.show();
-
-        /*
-         * These methods modify the pixels in the "jfxImage" WritableImage.
-         */
-//        oldDraw();
-//        oldCopy();
-//        newDraw();
-        newCopy();
-        view.setImage(jfxImage);
-
-        /*
-         * This method modifies the pixels in the "intPixelBuffer" PixelBuffer.
-         */
-//        oneCopy();
-//        view.setImage(new WritableImage(intPixelBuffer));
     }
 
     public static void main(String[] args) {
