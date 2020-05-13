@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 John Neffenger
+ * Copyright (C) 2019-2020 John Neffenger
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,14 +46,16 @@ import javax.imageio.ImageIO;
  * A JavaFX application to test the new {@link PixelBuffer} class on an image
  * with transparency. Run with a command like the following:
  * <pre>{@code
- * $HOME/opt/jdk-13.0.2/bin/java --add-modules=javafx.graphics \
- *     --module-path=$HOME/lib/javafx-sdk-14/lib Tester
+ * $HOME/opt/jdk-14.0.1/bin/java \
+ *     --add-modules=javafx.graphics \
+ *     --module-path=$HOME/lib/javafx-sdk-15/lib \
+ *     -cp dist/pixel-buffer.jar Tester
  * }</pre>
  *
  * @see
- * <a href="https://github.com/javafxports/openjdk-jfx/pull/472">JDK-8167148</a>
- * - Add native rendering support by supporting WritableImages backed by NIO
- * ByteBuffers
+ * <a href="https://github.com/javafxports/openjdk-jfx/pull/472">
+ * javafxports/openjdk-jfx#472</a> JDK-8167148: Add native rendering support by
+ * supporting WritableImages backed by NIO ByteBuffers
  * @author John Neffenger
  */
 public class Tester extends Application {
@@ -77,9 +79,14 @@ public class Tester extends Application {
     private final WritableImage jfxImage;
 
     private final int[] rgbArray;
+
     private final ByteBuffer byteBuffer;
-    private final PixelBuffer<ByteBuffer> pixelBuffer;
-    private final WritableImage nioImage;
+    private final PixelBuffer<ByteBuffer> bytePixelBuffer;
+    private final WritableImage nioByteImage;
+
+    private final IntBuffer intBuffer;
+    private final PixelBuffer<IntBuffer> intPixelBuffer;
+    private final WritableImage nioIntImage;
 
     private final List<Callable<Image>> methods;
 
@@ -135,23 +142,30 @@ public class Tester extends Application {
         jfxImage = new WritableImage(width, height);
 
         rgbArray = new int[width * height];
+
+        intBuffer = IntBuffer.allocate(width * height);
+        intPixelBuffer = new PixelBuffer<>(width, height, intBuffer, PixelFormat.getIntArgbPreInstance());
+        nioIntImage = new WritableImage(intPixelBuffer);
+
         byteBuffer = ByteBuffer.allocateDirect(width * height * Integer.BYTES);
-        pixelBuffer = new PixelBuffer<>(width, height, byteBuffer, PixelFormat.getByteBgraPreInstance());
-        nioImage = new WritableImage(pixelBuffer);
+        bytePixelBuffer = new PixelBuffer<>(width, height, byteBuffer, PixelFormat.getByteBgraPreInstance());
+        nioByteImage = new WritableImage(bytePixelBuffer);
 
         methods = Arrays.asList(
-                this::drawWrite,
-                this::drawWritePre,
-                this::drawPreWritePre,
-                this::drawPreWrite,
-                this::drawRgbWrite,
-                this::drawBgrWrite,
-                this::drawAbgrWrite,
-                this::drawAbgrPreWrite,
-                this::copyWrite,
-                this::copyWritePre,
-                this::nioDrawPrePut,
-                this::nioCopyPut
+                this::drawArgbSetArgb,
+                this::drawArgbSetArgbPre,
+                this::drawArgbPreSetArgb,
+                this::drawArgbPreSetArgbPre,
+                this::drawRgbSetArgb,
+                this::drawBgrSetArgb,
+                this::drawAbgrSetBgra,
+                this::drawAbgrPreSetBgraPre,
+                this::copyArgbSetArgb,
+                this::copyArgbSetArgbPre,
+                this::drawArgbPrePutBytes,
+                this::copyArgbPutBytes,
+                this::drawArgbPrePutInts,
+                this::copyArgbPutInts
         );
     }
 
@@ -169,7 +183,7 @@ public class Tester extends Application {
         log(image.getType(), format, comment);
     }
 
-    private Image oldDraw(BufferedImage awtImage, PixelFormat<IntBuffer> format) {
+    private Image oldDrawInt(BufferedImage awtImage, PixelFormat<IntBuffer> format) {
         Graphics2D graphics = awtImage.createGraphics();
         graphics.drawImage(pngImage, 0, 0, null);
         graphics.dispose();
@@ -178,7 +192,7 @@ public class Tester extends Application {
         return jfxImage;
     }
 
-    private Image oldDraw4Byte(BufferedImage awtImage, PixelFormat<ByteBuffer> format) {
+    private Image oldDrawByte(BufferedImage awtImage, PixelFormat<ByteBuffer> format) {
         Graphics2D graphics = awtImage.createGraphics();
         graphics.drawImage(pngImage, 0, 0, null);
         graphics.dispose();
@@ -187,111 +201,186 @@ public class Tester extends Application {
         return jfxImage;
     }
 
-    private Image nioDraw(BufferedImage awtImage) {
-        Graphics2D graphics = awtImage.createGraphics();
-        graphics.drawImage(pngImage, 0, 0, null);
-        graphics.dispose();
-        int[] data = ((DataBufferInt) awtImage.getRaster().getDataBuffer()).getData();
-        byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().put(data);
-        pixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
-        return nioImage;
-    }
-
-    private Image oldCopy(PixelFormat<IntBuffer> format) {
+    private Image oldCopyInt(PixelFormat<IntBuffer> format) {
         pngImage.getRGB(0, 0, width, height, rgbArray, 0, width);
         jfxImage.getPixelWriter().setPixels(0, 0, width, height, format, rgbArray, 0, width);
         return jfxImage;
     }
 
-    private Image nioCopy() {
+    private Image nioDrawInt(BufferedImage awtImage) {
+        Graphics2D graphics = awtImage.createGraphics();
+        graphics.drawImage(pngImage, 0, 0, null);
+        graphics.dispose();
+        int[] data = ((DataBufferInt) awtImage.getRaster().getDataBuffer()).getData();
+        intBuffer.put(data);
+        intBuffer.clear();
+        intPixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        return nioIntImage;
+    }
+
+    private Image nioDrawByte(BufferedImage awtImage) {
+        Graphics2D graphics = awtImage.createGraphics();
+        graphics.drawImage(pngImage, 0, 0, null);
+        graphics.dispose();
+        int[] data = ((DataBufferInt) awtImage.getRaster().getDataBuffer()).getData();
+        byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().put(data);
+        bytePixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        return nioByteImage;
+    }
+
+    private Image nioCopyInt() {
+        pngImage.getRGB(0, 0, width, height, rgbArray, 0, width);
+        intBuffer.put(rgbArray);
+        intBuffer.clear();
+        intPixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        return nioIntImage;
+    }
+
+    private Image nioCopyByte() {
         pngImage.getRGB(0, 0, width, height, rgbArray, 0, width);
         byteBuffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().put(rgbArray);
-        pixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
-        return nioImage;
+        bytePixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+        return nioByteImage;
     }
 
-    private Image drawWrite() {
+    /*
+     * 01 - INT_ARGB -> INT_ARGB (correct)
+     */
+    private Image drawArgbSetArgb() {
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         var format = PixelFormat.getIntArgbInstance();
         log(awtImage, format, MSG_OK);
-        return oldDraw(awtImage, format);
+        return oldDrawInt(awtImage, format);
     }
 
-    private Image drawWritePre() {
+    /*
+     * 02 - INT_ARGB -> INT_ARGB_PRE (wrong alpha)
+     */
+    private Image drawArgbSetArgbPre() {
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         var format = PixelFormat.getIntArgbPreInstance();
         log(awtImage, format, MSG_ALPHA);
-        return oldDraw(awtImage, format);
+        return oldDrawInt(awtImage, format);
     }
 
-    private Image drawPreWritePre() {
-        var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
-        var format = PixelFormat.getIntArgbPreInstance();
-        log(awtImage, format, MSG_OK);
-        return oldDraw(awtImage, format);
-    }
-
-    private Image drawPreWrite() {
+    /*
+     * 03 - INT_ARGB_PRE -> INT_ARGB (wrong alpha)
+     */
+    private Image drawArgbPreSetArgb() {
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
         var format = PixelFormat.getIntArgbInstance();
         log(awtImage, format, MSG_ALPHA);
-        return oldDraw(awtImage, format);
+        return oldDrawInt(awtImage, format);
     }
 
-    private Image drawRgbWrite() {
+    /*
+     * 04 - INT_ARGB_PRE -> INT_ARGB_PRE (correct)
+     */
+    private Image drawArgbPreSetArgbPre() {
+        var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
+        var format = PixelFormat.getIntArgbPreInstance();
+        log(awtImage, format, MSG_OK);
+        return oldDrawInt(awtImage, format);
+    }
+
+    /*
+     * 05 - INT_RGB -> INT_ARGB (blank)
+     */
+    private Image drawRgbSetArgb() {
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         var format = PixelFormat.getIntArgbInstance();
         log(awtImage, format, MSG_BLANK);
-        return oldDraw(awtImage, format);
+        return oldDrawInt(awtImage, format);
     }
 
-    private Image drawBgrWrite() {
+    /*
+     * 06 - INT_BGR -> INT_ARGB (blank)
+     */
+    private Image drawBgrSetArgb() {
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_BGR);
         var format = PixelFormat.getIntArgbInstance();
         log(awtImage, format, MSG_BLANK);
-        return oldDraw(awtImage, format);
+        return oldDrawInt(awtImage, format);
     }
 
-    private Image drawAbgrWrite() {
+    /*
+     * 07 - 4BYTE_ABGR -> BYTE_BGRA (wrong colors)
+     */
+    private Image drawAbgrSetBgra() {
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR);
         var format = PixelFormat.getByteBgraInstance();
         log(awtImage, format, MSG_COLORS);
-        return oldDraw4Byte(awtImage, format);
+        return oldDrawByte(awtImage, format);
     }
 
-    private Image drawAbgrPreWrite() {
+    /*
+     * 08 - 4BYTE_ABGR_PRE -> BYTE_BGRA_PRE (wrong colors)
+     */
+    private Image drawAbgrPreSetBgraPre() {
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_4BYTE_ABGR_PRE);
         var format = PixelFormat.getByteBgraPreInstance();
         log(awtImage, format, MSG_COLORS);
-        return oldDraw4Byte(awtImage, format);
+        return oldDrawByte(awtImage, format);
     }
 
-    private Image copyWrite() {
+    /*
+     * 09 - INT_ARGB -> INT_ARGB (correct)
+     */
+    private Image copyArgbSetArgb() {
         int type = BufferedImage.TYPE_INT_ARGB;
         var format = PixelFormat.getIntArgbInstance();
         log(type, format, MSG_OK);
-        return oldCopy(format);
+        return oldCopyInt(format);
     }
 
-    private Image copyWritePre() {
+    /*
+     * 10 - INT_ARGB -> INT_ARGB_PRE (wrong alpha)
+     */
+    private Image copyArgbSetArgbPre() {
         int type = BufferedImage.TYPE_INT_ARGB;
         var format = PixelFormat.getIntArgbPreInstance();
         log(type, format, MSG_ALPHA);
-        return oldCopy(format);
+        return oldCopyInt(format);
     }
 
-    private Image nioDrawPrePut() {
+    /*
+     * 11 - INT_ARGB_PRE -> BYTE_BGRA_PRE (correct)
+     */
+    private Image drawArgbPrePutBytes() {
         var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
-        var format = pixelBuffer.getPixelFormat();
+        var format = bytePixelBuffer.getPixelFormat();
         log(awtImage, format, MSG_OK);
-        return nioDraw(awtImage);
+        return nioDrawByte(awtImage);
     }
 
-    private Image nioCopyPut() {
+    /*
+     * 12 - INT_ARGB -> BYTE_BGRA_PRE (wrong alpha)
+     */
+    private Image copyArgbPutBytes() {
         int type = BufferedImage.TYPE_INT_ARGB;
-        var format = pixelBuffer.getPixelFormat();
+        var format = bytePixelBuffer.getPixelFormat();
         log(type, format, MSG_ALPHA);
-        return nioCopy();
+        return nioCopyByte();
+    }
+
+    /*
+     * 13 - INT_ARGB_PRE -> INT_ARGB_PRE (correct)
+     */
+    private Image drawArgbPrePutInts() {
+        var awtImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB_PRE);
+        var format = intPixelBuffer.getPixelFormat();
+        log(awtImage, format, MSG_OK);
+        return nioDrawInt(awtImage);
+    }
+
+    /*
+     * 14 - INT_ARGB -> INT_ARGB_PRE (wrong alpha)
+     */
+    private Image copyArgbPutInts() {
+        int type = BufferedImage.TYPE_INT_ARGB;
+        var format = intPixelBuffer.getPixelFormat();
+        log(type, format, MSG_ALPHA);
+        return nioCopyInt();
     }
 
     private void onKeyPressed(KeyEvent event) {

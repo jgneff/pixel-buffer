@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 John Neffenger
+ * Copyright (C) 2019-2020 John Neffenger
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
@@ -38,17 +39,19 @@ import javax.imageio.ImageReader;
 
 /**
  * A JavaFX animation to test the support for a WritableImage backed by a
- * ByteBuffer. Run with a command like the following:
+ * PixelBuffer. Run with a command like the following:
  * <pre>{@code
- * ~/opt/jdk-13.0.2/bin/java --add-modules=javafx.graphics \
- *     --module-path=$HOME/lib/javafx-sdk-14/lib \
- *     -Dprism.order=sw -Djavafx.animation.pulse=2 Animator
+ * $HOME/opt/jdk-14.0.1/bin/java \
+ *     --add-modules=javafx.graphics \
+ *     --module-path=$HOME/lib/javafx-sdk-15/lib \
+ *     -Dprism.order=sw -Djavafx.animation.pulse=2 \
+ *     -cp dist/pixel-buffer.jar Animator
  * }</pre>
  *
  * @see
- * <a href="https://github.com/javafxports/openjdk-jfx/pull/472">JDK-8167148</a>
- * - Add native rendering support by supporting WritableImages backed by NIO
- * ByteBuffers
+ * <a href="https://github.com/javafxports/openjdk-jfx/pull/472">
+ * javafxports/openjdk-jfx#472</a> JDK-8167148: Add native rendering support by
+ * supporting WritableImages backed by NIO ByteBuffers
  * @author John Neffenger
  */
 public class Animator extends Application {
@@ -59,7 +62,6 @@ public class Animator extends Application {
     private final ArrayList<BufferedImage> frames;
     private final int width;
     private final int height;
-    private final int[] array;
     private final ImageView view;
     private final StackPane root;
 
@@ -92,7 +94,6 @@ public class Animator extends Application {
         BufferedImage first = frames.get(0);
         width = first.getWidth();
         height = first.getHeight();
-        array = new int[width * height];
         view = new ImageView();
         root = new StackPane(view);
     }
@@ -125,29 +126,31 @@ public class Animator extends Application {
          * Uses the traditional method to convert AWT images to JavaFX images.
          */
         AnimationTimer animationOld = new AnimationTimer() {
+            private final int[] array = new int[width * height];
+
             private int index;
 
             @Override
             public void handle(long now) {
-                WritableImage jfxImage = new WritableImage(width, height);
+                WritableImage image = new WritableImage(width, height);
                 frames.get(index).getRGB(0, 0, width, height, array, 0, width);
-                jfxImage.getPixelWriter().setPixels(0, 0, width, height,
+                image.getPixelWriter().setPixels(0, 0, width, height,
                         PixelFormat.getIntArgbInstance(), array, 0, width);
-                view.setImage(jfxImage);
+                view.setImage(image);
                 index = index == frames.size() - 1 ? 0 : index + 1;
             }
         };
 
         /*
          * Tests the new conversion method using the PixelBuffer class. Note
-         * that this method should use two buffers to avoid writing to an image
-         * in use by the QuantumRenderer thread.
+         * that this method should (but doesn't) use two buffers to avoid
+         * writing to an image in use by the QuantumRenderer thread.
          */
-        AnimationTimer animationNew = new AnimationTimer() {
-            private final ByteBuffer bb = ByteBuffer.allocateDirect(width * height * Integer.BYTES);
-            private final PixelFormat<ByteBuffer> pf = PixelFormat.getByteBgraPreInstance();
-            private final PixelBuffer<ByteBuffer> pb = new PixelBuffer<>(width, height, bb, pf);
-            private final WritableImage jfxImage = new WritableImage(pb);
+        AnimationTimer animationNewByte = new AnimationTimer() {
+            private final ByteBuffer byteBuffer = ByteBuffer.allocateDirect(width * height * Integer.BYTES);
+            private final PixelFormat<ByteBuffer> pixelFormat = PixelFormat.getByteBgraPreInstance();
+            private final PixelBuffer<ByteBuffer> pixelBuffer = new PixelBuffer<>(width, height, byteBuffer, pixelFormat);
+            private final WritableImage image = new WritableImage(pixelBuffer);
             private final int[] array = new int[width * height];
 
             private int index;
@@ -155,15 +158,42 @@ public class Animator extends Application {
             @Override
             public void start() {
                 super.start();
-                bb.order(ByteOrder.nativeOrder());
-                view.setImage(jfxImage);
+                byteBuffer.order(ByteOrder.nativeOrder());
+                view.setImage(image);
             }
 
             @Override
             public void handle(long now) {
                 frames.get(index).getRGB(0, 0, width, height, array, 0, width);
-                bb.asIntBuffer().put(array);
-                pb.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+                byteBuffer.asIntBuffer().put(array);
+                pixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
+                index = index == frames.size() - 1 ? 0 : index + 1;
+            }
+        };
+
+        /*
+         * Tests the new conversion method using the PixelBuffer class. Note
+         * that this method should (but doesn't) use two buffers to avoid
+         * writing to an image in use by the QuantumRenderer thread.
+         */
+        AnimationTimer animationNewInt = new AnimationTimer() {
+            private final IntBuffer intBuffer = IntBuffer.allocate(width * height);
+            private final PixelFormat<IntBuffer> pixelFormat = PixelFormat.getIntArgbPreInstance();
+            private final PixelBuffer<IntBuffer> pixelBuffer = new PixelBuffer<>(width, height, intBuffer, pixelFormat);
+            private final WritableImage image = new WritableImage(pixelBuffer);
+
+            private int index;
+
+            @Override
+            public void start() {
+                super.start();
+                view.setImage(image);
+            }
+
+            @Override
+            public void handle(long now) {
+                frames.get(index).getRGB(0, 0, width, height, intBuffer.array(), 0, width);
+                pixelBuffer.updateBuffer((b) -> new Rectangle2D(0, 0, width, height));
                 index = index == frames.size() - 1 ? 0 : index + 1;
             }
         };
@@ -171,7 +201,9 @@ public class Animator extends Application {
         /*
          * Selects one of the AnimationTimer instances above.
          */
-        animation = animationNew;
+//        animation = animationOld;
+//        animation = animationNewByte;
+        animation = animationNewInt;
     }
 
     @Override
